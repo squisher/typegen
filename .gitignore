@@ -1,0 +1,12 @@
+Tmp*
+*.hi
+*.o
+*.aux
+*.hp
+*.prof
+*.ps
+errors.txt
+dist/
+.cabal-sandbox/
+.DS_Store
+hoogle_store.txt
