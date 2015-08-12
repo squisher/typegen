@@ -56,7 +56,7 @@ fileMemoize fname f s = do
     (Just x) -> return x
 
 hoogle :: Type -> IO [TestFunction]
-hoogle = run uhoogle
+hoogle = uhoogle
 
 -- | Runs a hoogle search on the given type string and returns a list of scores
 -- attached to results

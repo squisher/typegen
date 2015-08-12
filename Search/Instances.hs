@@ -28,17 +28,18 @@ getInstances s | s `elem` noInstances = return []
 getInstances s = do
   let command = (shell $ "echo \":i "++s++"\" | ghci") { std_out = CreatePipe
                                                        }
-  (_, mhandle, _, _) <- createProcess command
+  (_, mhandle, _, pid) <- createProcess command
   case mhandle of
     (Just hout) -> do
       string <- hGetContents hout
       let newString = "instance" ++ (intercalate "instance" $ tail $ splitOn "instance" string)
-      let str = head $ splitOn "\955" newString
+      let str = head $ splitOn "λ " newString
       let newString' = if startsWith "data" str
                         then unlines (tail (lines str))
                         else str
       let list = parseInstances newString'
-      either (\x -> putStrLn (s ++ " => " ++ show newString ++ show x) >> return []) return list
+      _ <- waitForProcess pid
+      either (\x -> putStrLn (s ++ " => " ++ newString ++ "\n" ++ show x ++ "\n\n") >> return []) return list
     Nothing -> return []
 
 startsWith prefix string = take (length prefix) string == prefix
