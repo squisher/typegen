@@ -24,7 +24,8 @@ library
                        Search.Instances,
                        GenProg.Types,
                        GenProg.Mutations,
-                       GenProg.Test
+                       GenProg.Test,
+                       GenProg.Evaluate
   -- other-modules:
   other-extensions:    TupleSections
   build-depends:       base >=4.7 && <4.8,
@@ -35,7 +36,9 @@ library
                        parsec,
                        containers,
                        random,
-                       directory
+                       directory,
+                       ghc,
+                       ghc-paths
   -- hs-source-dirs:
   default-language:    Haskell2010
 
@@ -56,6 +59,8 @@ executable typegen
                        parsec,
                        containers,
                        directory,
+                       ghc,
+                       ghc-paths,
                        typegen
   -- hs-source-dirs:
   default-language:    Haskell2010

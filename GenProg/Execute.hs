@@ -29,7 +29,7 @@ executeString s = do
   writeFile "/dev/null" (s ++ x) -- This is a weird thing that I had to do because
                                  -- it was being too lazy
   return $ case readMaybe x of
-    Nothing -> Left $ show x
+    Nothing -> Left x
     (Just x) -> Right x
 
 runFile name = do

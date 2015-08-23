@@ -17,8 +17,7 @@ import Control.Arrow
 import Data.Either
 
 main = do
-  n <- read <$> head <$> getArgs
-  testRunPop n
+  testRunPop 
 
 testTypeStuff = do
   let a = (Polymorphic "a" (map Constraint []))
@@ -49,8 +48,8 @@ testPrintPop n = do
   -- fits <- executePopulation pop
   -- mapM_ print $ zip [1..] fits
 
-testRunPop :: Int -> IO ()
-testRunPop n = do
+testRunPop :: IO ()
+testRunPop = do
   let a x = (Polymorphic "a" (map Constraint x))
   let b x = (Polymorphic "b" (map Constraint x))
   let plusT = (Function (a ["Num"]) (Function (a ["Num"]) (a ["Num"])))
@@ -58,15 +57,21 @@ testRunPop n = do
   let lit n = Atom num (show n)
   let plus = Atom plusT "(+)"
   let ind = Individual "f :: (Num a) => a -> a" ["x :: (Num a) -> a"] [] (lit 1)
+  putStrLn "Mutating origininal individual"
   x <- mutations ind
   tests <- mkUnaryTests (\x -> x^2) (0::Int,10) 10
   let pop = Population x tests
   -- mapM_ (putStrLn . showValue . func) x
+  putStrLn "Testing population"
   fits <- executePopulation pop
+  mapM_ (print . ((either id show) *** (showValue . func))) $ zip fits x 
   let newInds = map snd $ (filter (isRight.fst) $ zip fits x)
+  putStrLn "Mutating new population"
   newX <- concat <$> mapM mutations newInds
+  mapM_ (putStrLn . showValue . func) newX
   let newPop = Population newX tests
   fits <- executePopulation newPop
+  putStrLn "Testing new population"
   mapM_ (print.(showIndividual***id)) $ zip x fits
 
 

@@ -62,7 +62,6 @@ hoogle = uhoogle
 -- attached to results
 uhoogle :: Type -> IO [TestFunction]
 uhoogle inType = do
-  print "No memo"
   let s = showType inType
   -- putStrLn ("Searching for: " ++ s)
   db <- loadDatabase "./default.hoo"

@@ -14,6 +14,13 @@ import           Text.Parsec.Language
 import           Text.Parsec.Prim
 import qualified Text.Parsec.Token    as T
 import Search.ParseInstances
+import GHC
+import GHC.Paths ( libdir )
+import DynFlags
+import Control.Applicative
+import Outputable
+import PprTyThing
+import System.Environment
 
 noInstances = ["String","IOError","Rational"]
 
@@ -26,20 +33,26 @@ noInstances = ["String","IOError","Rational"]
 getInstances :: String -> IO [Instance]
 getInstances s | s `elem` noInstances = return []
 getInstances s = do
-  let command = (shell $ "echo \":i "++s++"\" | ghci") { std_out = CreatePipe
-                                                       }
-  (_, mhandle, _, pid) <- createProcess command
-  case mhandle of
-    (Just hout) -> do
-      string <- hGetContents hout
-      let newString = "instance" ++ (intercalate "instance" $ tail $ splitOn "instance" string)
-      let str = head $ splitOn "λ " newString
-      let newString' = if startsWith "data" str
-                        then unlines (tail (lines str))
-                        else str
-      let list = parseInstances newString'
-      _ <- waitForProcess pid
-      either (\x -> putStrLn (s ++ " => " ++ newString ++ "\n" ++ show x ++ "\n\n") >> return []) return list
-    Nothing -> return []
+    strings <- findInstanceStrings s ["Prelude"]
+    let list = parseInstances (unlines strings)
+    either (\x -> putStrLn (s ++ " => " ++ (unlines strings) ++ "\n" ++ show x ++ "\n\n") >> return []) return list
+
+process (Just (tyThing, fixity, clsInsts, famInsts)) = (map pprInstance clsInsts)
 
 startsWith prefix string = take (length prefix) string == prefix
+
+findInstanceStrings str modules = defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
+    (paths, things) <- runGhc (Just libdir) $ do
+        dflags <- getSessionDynFlags
+        let dflags' = foldl xopt_set (dflags { hscTarget = HscInterpreted, ghcLink = LinkInMemory })
+                            [Opt_Cpp, Opt_ImplicitPrelude, Opt_MagicHash]
+        setSessionDynFlags dflags'
+        setContext $ map (IIDecl . simpleImportDecl . mkModuleName) modules
+        let paths = (importPaths dflags')
+        unqual <- getPrintUnqual
+        names <- parseName str
+        things <- mapM (getInfo True) names
+        let sdocs = concatMap process things
+        let docs = map (flip runSDoc (initSDocContext dflags' defaultUserStyle)) sdocs
+        return (paths, docs)
+    return $ map show things
