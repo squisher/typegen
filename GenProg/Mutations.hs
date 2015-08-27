@@ -43,6 +43,7 @@ interleave xs ys zs = (take 1 xs) ++ (take 1 ys) ++ (take 1 zs)
 mutations :: Individual -> IO [Individual]
 mutations ind = do
   let env = getEnvironment ind
+  -- mapM_ print env
   closure <- mutationsToValue env (func ind)
   return $ combine closure ind
 

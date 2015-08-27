@@ -15,9 +15,21 @@ import Control.Monad
 import System.Environment
 import Control.Arrow
 import Data.Either
+import GenProg
 
 main = do
-  testRunPop 
+  testGenProg
+
+testGenProg = do
+  let a x = (Polymorphic "a" (map Constraint x))
+  let num = a ["Num"]
+  let lit n = Atom num (show n)
+  let ind = Individual "f :: (Num a) => a -> a" ["x :: (Num a) => a"] [] (lit 1)
+
+  tests <- mkUnaryTests (\x -> x^2) (0::Int,10) 10
+
+  runGenProg ind tests
+
 
 testTypeStuff = do
   let a = (Polymorphic "a" (map Constraint []))
@@ -56,15 +68,16 @@ testRunPop = do
   let num = a ["Num"]
   let lit n = Atom num (show n)
   let plus = Atom plusT "(+)"
-  let ind = Individual "f :: (Num a) => a -> a" ["x :: (Num a) -> a"] [] (lit 1)
+  let ind = Individual "f :: (Num a) => a -> a" ["x :: (Num a) => a"] [] (lit 1)
   putStrLn "Mutating origininal individual"
   x <- mutations ind
+  -- mapM_ (putStrLn . showValue . func) x
   tests <- mkUnaryTests (\x -> x^2) (0::Int,10) 10
   let pop = Population x tests
   -- mapM_ (putStrLn . showValue . func) x
   putStrLn "Testing population"
   fits <- executePopulation pop
-  mapM_ (print . ((either id show) *** (showValue . func))) $ zip fits x 
+  mapM_ (print . ((either id show) *** (showValue . func))) $ zip fits x
   let newInds = map snd $ (filter (isRight.fst) $ zip fits x)
   putStrLn "Mutating new population"
   newX <- concat <$> mapM mutations newInds

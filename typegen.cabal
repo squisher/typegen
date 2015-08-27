@@ -25,10 +25,11 @@ library
                        GenProg.Types,
                        GenProg.Mutations,
                        GenProg.Test,
-                       GenProg.Evaluate
+                       GenProg.Evaluate,
+                       GenProg
   -- other-modules:
   other-extensions:    TupleSections
-  build-depends:       base >=4.7 && <4.8,
+  build-depends:       base >=4.8 && <4.9,
                        haskell-src >=1.0 && <1.1,
                        hoogle,
                        process,
@@ -38,19 +39,17 @@ library
                        random,
                        directory,
                        ghc,
-                       ghc-paths
+                       ghc-paths,
+                       mtl
   -- hs-source-dirs:
   default-language:    Haskell2010
 
 executable typegen
   main-is:             Main.hs
   -- other-modules:
-  ghc-options:        -O2
-                      -threaded
-                      -fprof-auto
-                      "-with-rtsopts=-p -s -hy -i0.1"
   other-extensions:    TupleSections
   build-depends:       base,
+                       typegen,
                        random,
                        haskell-src,
                        hoogle,
@@ -61,6 +60,7 @@ executable typegen
                        directory,
                        ghc,
                        ghc-paths,
-                       typegen
+                       mtl
+
   -- hs-source-dirs:
   default-language:    Haskell2010

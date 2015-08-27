@@ -40,13 +40,13 @@ runString string = try $ do
 
 main = do
     installHandler busError Ignore Nothing -- (Catch (throwIO $ NoMethodError "You screwed up the type")) Nothing
-    runFile "test.hs" 
-    runFile "test2.hs" 
+    runFile "test.hs"
+    runFile "test2.hs"
     f1 <- runString "let f x = undefined in f" :: IO (Either SomeException (Int -> Int))
     f2 <- runString "let f x = x + 10 in f" :: IO (Either SomeException (Int -> Int))
-    f3 <- runString "let f x = x + 10 in f" :: IO (Either SomeException (Bool -> Bool)) 
+    f3 <- runString "let f x = x + 10 in f" :: IO (Either SomeException (Bool -> Bool))
     putStrLn "First test"
     print $ (fromRight f2) 10
     putStrLn "Second"
-    print =<< ((try $ return $ fromRight f3 True) :: IO (Either SomeException Bool))
+    print (f3 `ap` (return True) :: Either SomeException Bool)
     putStrLn "Third"
