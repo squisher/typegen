@@ -2,21 +2,41 @@
 module GenProg where
 
 import Control.Monad.State
+import Data.Either
+import Data.Maybe
+import Data.List
+import Test.QuickCheck
 
 import Types.Value
+import Types.Type (showType)
 import GenProg.Types
 import GenProg.Mutations
+import GenProg.Execute
+import GenProg.RandomElement
 
 
 type GenProgState = Population
 
-mutate :: StateT GenProgState IO ()
-mutate = do
+
+prettyPrintInd (ind,fit) = do
+  putStrLn $ showTypeStructure $ func ind
+
+liftEither (x, Right y) = Right (x, y)
+liftEither (x, Left y) = Left (x, y)
+
+mutate :: Int -> StateT GenProgState IO ()
+mutate count = do
   Population{..} <- get
 
-  individuals <- liftIO $ (concat <$> mapM mutations individuals)
+  inds <- liftIO $ concat <$> mapM mutations individuals
+  inds <- case count > (length inds) of
+    False -> liftIO $ take count <$> (getRandomElements 0.00130146 inds)
+    True -> return inds
 
-  liftIO $ mapM_ (putStrLn . showValue . func) individuals
+  individuals <- return $ individuals ++ inds
+  liftIO $ do
+    putStr "Number of new individuals: "
+    print $ length individuals
 
   put (Population{..})
 
@@ -26,21 +46,25 @@ evaluate = do
 
   liftIO $ executePopulation pop
 
-select :: [Either String Int] -> StateT GenProgState IO ()
-select fits = do
+select :: Int -> [Either String Int] -> StateT GenProgState IO ()
+select count fits = do
   Population{..} <- get
 
-  -- TODO This is where I left off 
 
-  let indsWScore = filter (isRight.snd) $ zip individuals
+  let (baddies, indsWScore) = partitionEithers $ map liftEither $ zip individuals fits
 
-  let sorted = sortOn snd indsWScore
 
-  let count = length individuals `div` 2
 
-  let bestWScores = drop (length sorted - count) sorted
+  let sorted = sortOn (negate.snd) indsWScore
 
-  individuals <- return $ snd <$> bestWScores
+  let bestWScores = take count sorted
+
+  liftIO $ do
+    putStrLn "Printing Worst Individuals"
+    mapM_ prettyPrintInd baddies
+    -- mapM_ prettyPrintInd bestWScores
+
+  individuals <- return $ fst <$> bestWScores
 
   put (Population{..})
 
@@ -48,11 +72,11 @@ loop :: StateT GenProgState IO ()
 loop = do
   -- The steps for genetic programming is mutate => evaluate => select
 
-  mutate
+  mutate 20
 
-  select =<< evaluate
+  select 20 =<< evaluate
 
-  -- I will need to make an if statement to stop it, maybe...
+  loop
 
 runGenProg ind tests = do
   let population = Population [ind] tests

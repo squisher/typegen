@@ -16,6 +16,8 @@ import System.Environment
 import Control.Arrow
 import Data.Either
 import GenProg
+import GenProg.RandomElement
+
 
 main = do
   testGenProg

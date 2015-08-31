@@ -29,9 +29,11 @@ combine xs ind = ind : map (\(mods, val) -> Individual (name ind) (args ind) (mo
 checkEnvVars :: [Value] -> Type -> [Value]
 checkEnvVars xs t = filter ((`usableAs`t) . typ) xs
 
+nil = (Atom (Application (Concrete "[]") (Polymorphic "abcd" [])) "[]")
+numbers = map (Atom (Polymorphic "abcd" [Constraint "Num"]) . show) [0..9]
+
 getEnvironment :: Individual -> [Value]
-getEnvironment ind = name ind : args ind ++ map (Atom (Polymorphic "abcd" [Constraint "Num"]) . show) [0..9]
-                                         ++ [(Atom (Application (Concrete "[]") (Polymorphic "abcd" [])) "[]")]
+getEnvironment ind = nil : name ind : args ind -- ++ numbers 
 
 interleave :: [a] -> [a] -> [a] -> [a]
 interleave [] [] [] = []
