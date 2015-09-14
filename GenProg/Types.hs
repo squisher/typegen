@@ -6,6 +6,9 @@ import Data.List
 
 data Individual = Individual { name :: Value, args :: [Value], reqModules :: [String], func :: Value } deriving (Show)
 
+instance Eq Individual where
+  a == b = func a == func b
+
 data Population = Population { individuals :: [Individual], tests :: [Test] }
 
 showIndividual ind = "let "++value (name ind)++" "++intercalate " " (map value $ args ind)++" = " ++ (showValue $ func ind) ++ " in "++value (name ind)

@@ -19,7 +19,8 @@ type GenProgState = Population
 
 
 prettyPrintInd (ind,fit) = do
-  putStrLn $ showTypeStructure $ func ind
+  putStr $ (showValue $ func ind) ++ " => "
+  putStrLn $ show fit
 
 liftEither (x, Right y) = Right (x, y)
 liftEither (x, Left y) = Left (x, y)
@@ -29,6 +30,7 @@ mutate count = do
   Population{..} <- get
 
   inds <- liftIO $ concat <$> mapM mutations individuals
+
   inds <- case count > (length inds) of
     False -> liftIO $ take count <$> (getRandomElements 0.00130146 inds)
     True -> return inds
@@ -57,12 +59,16 @@ select count fits = do
 
   let sorted = sortOn (negate.snd) indsWScore
 
-  let bestWScores = take count sorted
+  let bestWScores = nub $ take count sorted
 
   liftIO $ do
-    putStrLn "Printing Worst Individuals"
-    mapM_ prettyPrintInd baddies
-    -- mapM_ prettyPrintInd bestWScores
+    if True
+      then do
+        putStrLn "Printing Best Individuals"
+        mapM_ prettyPrintInd bestWScores
+      else do
+        putStrLn "Printing Worst Individuals"
+        mapM_ prettyPrintInd baddies
 
   individuals <- return $ fst <$> bestWScores
 
@@ -79,5 +85,6 @@ loop = do
   loop
 
 runGenProg ind tests = do
+  putStrLn "Running TypeGen"
   let population = Population [ind] tests
   evalStateT loop (population)

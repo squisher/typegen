@@ -10,7 +10,8 @@ import           Types.ProcessTypes
 import           Types.TestFunction
 import           Types.Type
 import           Types.Value
-
+import Control.Monad.Trans.Maybe
+import Control.Monad
 -- Helpers vvvvvvvvv
 
 nextLabel :: IO String
@@ -26,14 +27,14 @@ testFunctionToClosure tf = (maybeToList $ modName tf, funcValue tf)
 combine :: [([String],Value)] -> Individual -> [Individual]
 combine xs ind = ind : map (\(mods, val) -> Individual (name ind) (args ind) (mods ++ reqModules ind) val) xs
 
-checkEnvVars :: [Value] -> Type -> [Value]
-checkEnvVars xs t = filter ((`usableAs`t) . typ) xs
+checkEnvVars :: [Value] -> Type -> IO [Value]
+checkEnvVars xs t = filterM ((`usableAs`t) . typ) xs
 
 nil = (Atom (Application (Concrete "[]") (Polymorphic "abcd" [])) "[]")
 numbers = map (Atom (Polymorphic "abcd" [Constraint "Num"]) . show) [0..9]
 
 getEnvironment :: Individual -> [Value]
-getEnvironment ind = nil : name ind : args ind -- ++ numbers 
+getEnvironment ind = nil : name ind : args ind -- ++ numbers
 
 interleave :: [a] -> [a] -> [a] -> [a]
 interleave [] [] [] = []
@@ -64,13 +65,13 @@ applicationsToValue env v@(Atom _ _) = do
   lab <- nextLabel
   let appliedType = (Function vTyp vTyp)
   matches <- hoogle appliedType
-  let envs = map ([],) $ checkEnvVars env appliedType
+  envs <- map ([],) <$> checkEnvVars env appliedType
   let fs = map testFunctionToClosure matches ++ envs
-  let mas = map (\(f,s) -> (f,) <$> applyValues s v) fs
+  mas <- mapM (\(f,s) -> runMaybeT $ (f,) <$> applyValues s v) fs
   return $ catMaybes mas
 applicationsToValue env (Apply t v1 v2) = do
-  newV1s <- filter (((typ v1)`usableAs`).typ.snd) <$> mutationsToValue env v1
-  newV2s <- filter (((typ v2)`usableAs`).typ.snd) <$> mutationsToValue env v2
+  newV1s <- filterM (((typ v1)`usableAs`).typ.snd) =<< mutationsToValue env v1
+  newV2s <- filterM (((typ v2)`usableAs`).typ.snd) =<< mutationsToValue env v2
   return [(m1 `union` m2, Apply t v1 v2) | (m1, v1) <- newV1s, (m2, v2) <- newV2s  ]
 
 -- Applications ^^^^^^^^^^^^^^^^
@@ -80,14 +81,14 @@ applicationsToValue env (Apply t v1 v2) = do
 modificationsToValue :: [Value] -> Value -> IO [([String],Value)]
 modificationsToValue env v@(Atom _ _) = do
   matches <- hoogle (typ v)
-  let envs = map ([],) $ checkEnvVars env (typ v)
+  envs <- map ([],) <$> checkEnvVars env (typ v)
   let fs = map testFunctionToClosure matches ++ envs
   return fs
 modificationsToValue env v@(Apply t v1 v2) = do
-  newV1s <- filter (((typ v1)`usableAs`).typ.snd) <$> mutationsToValue env v1
-  newV2s <- filter (((typ v2)`usableAs`).typ.snd) <$> mutationsToValue env v2
+  newV1s <- filterM (((typ v1)`usableAs`).typ.snd) =<< mutationsToValue env v1
+  newV2s <- filterM (((typ v2)`usableAs`).typ.snd) =<< mutationsToValue env v2
   matches <- hoogle (typ v)
-  let envs = map ([],) $ checkEnvVars env (typ v)
+  envs <- map ([],) <$> checkEnvVars env (typ v)
   let fs = map testFunctionToClosure matches ++ envs
   return $ fs ++ [(m1 `union` m2, Apply t v1 v2) | (m1, v1) <- newV1s, (m2, v2) <- newV2s]
 
@@ -99,8 +100,9 @@ modificationsToValue env v@(Apply t v1 v2) = do
 unApplicationsToValue :: [Value] -> Value -> IO [([String],Value)]
 unApplicationsToValue env v@(Atom _ _) = return []
 unApplicationsToValue env v@(Apply t v1 v2) = do
-  if (typ v2) `usableAs` t
-    then filter (((typ v1)`usableAs`).typ.snd) <$> mutationsToValue env v2
+  b <- (typ v2) `usableAs` t
+  if b
+    then filterM (((typ v1)`usableAs`).typ.snd) =<< mutationsToValue env v2
     else return []
 -- UnApplications ^^^^^^^^^^^^^^
 

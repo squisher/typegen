@@ -6,13 +6,18 @@ import           Control.Monad
 import           System.IO.Unsafe
 import           Data.List
 import           Data.String
+
 import Search.Instances
 import Types.Type
-import GenProg.Types
+-- import GenProg.Types
 import Types.Value
+
 import Data.Bool (bool)
 import Debug.Trace
-
+import Control.Monad.Trans.Maybe
+import Control.Monad.Trans.Class
+import Data.Monoid
+import Data.Maybe
 --------------------------
 -- Type modification stuff
 --------------------------
@@ -35,7 +40,8 @@ signature than the fucntion
 
 -}
 
--- coerce :: Type -> Type -> Maybe Type
+-- coerce :: Type -> Type -> MaybeT IO Type
+
 
 equivalentTo (Polymorphic a xs) (Polymorphic b ys) = xs == ys
 equivalentTo (Concrete a) (Concrete b) = a == b
@@ -47,25 +53,32 @@ equivalentTo x y = False
 strings = map unConstraint
 -- | Apply the second argument to the first, see if they fit, if they do
 -- Return the resulting value `apply f x`
-apply :: Type -> Type -> Maybe Type
+apply :: Type -> Type -> MaybeT IO Type
 apply f@(Function a b) x = do
   changes <- changesNeeded x a
   let newX = replace changes x
   let newB = replace changes b
+  lift $ if a == (Concrete "Bool")
+        then do
+          putStrLn $ "Heres what I am getting: " ++ showType f ++ " <applied to> " ++ show x
+          putStrLn $ "And heres newX: " ++ showType newX ++ " and newB: " ++ showType newB
+          putStrLn $ "And these are the changes: "
+          mapM_ (print) changes
+        else return ()
   guard $ newX `equivalentTo` a
   guard $ newB `equivalentTo` b
   return newB
 
 --     actual `usableAs` expected
-usableAs :: Type -> Type -> Bool
-usableAs a b | a == b                         = True
-usableAs (Polymorphic _ []) _                 = True
+usableAs :: Type -> Type -> IO Bool
+usableAs a b | a == b                         = return True
+usableAs (Polymorphic _ []) _                 = return True
 usableAs a (Polymorphic _ cs)                 = a `matchesConstraints` cs
 usableAs (Polymorphic _ cs) x                 = x `hasAConstraintIn` cs
-usableAs (Tuple as) (Tuple bs)                = and (zipWith usableAs as bs)
-usableAs (Application a b) (Application c d)  = and (zipWith usableAs [c,d] [a,b])
-usableAs (Function a b) (Function c d)        = and (zipWith usableAs [c,d] [a,b])
-usableAs _ _                                  = False
+usableAs (Tuple as) (Tuple bs)                = and <$> (zipWithM usableAs as bs)
+usableAs (Application a b) (Application c d)  = and <$> (zipWithM usableAs [c,d] [a,b])
+usableAs (Function a b) (Function c d)        = and <$> (zipWithM usableAs [c,d] [a,b])
+usableAs _ _                                  = return False
 
 -- | List of known Concrete type - instances
 -- TODO get this from the DataBase in Hoogle
@@ -79,23 +92,27 @@ constraintPairs = [(["Int","Integer"], ["Num","Enum","Eq","Integral","Data"
                                         ,"RealFloat","RealFrac"])]
 
 -- | Returns the list of constraints for any concrete type
-findConstrainsts :: String -> [String]
-findConstrainsts str = unsafePerformIO $ do
+findConstraints :: String -> IO [String]
+findConstraints str = do
   instances <- getInstances str
   return $ map clas instances
 
 -- | Returns whether or not a type matches a list of constraints
-matchesConstraints :: Type -> [Constraint] -> Bool
-matchesConstraints (Concrete a) cs = (length $ strings cs `intersect` (findConstrainsts a)) == (length cs)
-matchesConstraints (Polymorphic _ xs) cs = (length $ cs `intersect` xs) == (length cs)
-matchesConstraints _ [] = True
-matchesConstraints _ _ = False
+matchesConstraints :: Type -> [Constraint] -> IO Bool
+matchesConstraints (Concrete a) cs = do
+  constraints <- findConstraints a
+  return $ (length $ strings cs `intersect` constraints) == (length cs)
+matchesConstraints (Polymorphic _ xs) cs = return $ (length $ cs `intersect` xs) == (length cs)
+matchesConstraints _ [] = return $ True
+matchesConstraints _ _ = return $ False
 
-hasAConstraintIn :: Type -> [Constraint] -> Bool
-hasAConstraintIn (Concrete a) cs = not $ null (strings cs `intersect` (findConstrainsts a))
-hasAConstraintIn (Polymorphic _ xs) cs = not $ null $ cs `intersect` xs
-hasAConstraintIn _ [] = True
-hasAConstraintIn _ _ = False
+hasAConstraintIn :: Type -> [Constraint] -> IO Bool
+hasAConstraintIn (Concrete a) cs = do
+  constraints <- findConstraints a
+  return $ not $ null (strings cs `intersect` constraints)
+hasAConstraintIn (Polymorphic _ xs) cs = return $ not $ null $ cs `intersect` xs
+hasAConstraintIn _ [] = return $ True
+hasAConstraintIn _ _ = return $ False
 
 mapType :: (Type -> Type) -> Type -> Type
 mapType f (Function a b) = (Function (mapType f a) (mapType f b))
@@ -109,26 +126,39 @@ replaceInd (Concrete a) x (Concrete b) | b == a =           x
 replaceInd a x b | a == b =                                 x
 replaceInd a x b =                                          b
 
-replaceWith :: Type -> Type -> Type -> Maybe Type
-f@(Function a b) `replaceWith` g@(Function c d) | g `usableAs` f = (a `replaceWith` c) <=< (b `replaceWith` d)
-f@(Application a b) `replaceWith` g@(Application c d) | g `usableAs` f = (a `replaceWith` c) <=< (b `replaceWith` d)
-f@(Tuple as) `replaceWith` g@(Tuple bs) | g `usableAs` f = (as `replaceAllWith` bs)
-p@(Polymorphic n cs) `replaceWith` c | c `usableAs` p = (Just . mapType (replaceInd p c))
-a@(Concrete _) `replaceWith` b@(Concrete _) | a == b = Just
-a@(Concrete _) `replaceWith` b@(Polymorphic _ _) | b `usableAs` a = Just
-a@(Application _ _) `replaceWith` b@(Polymorphic _ _) = const Nothing -- im not sure if this is the right move???
-a `replaceWith` b@(Polymorphic _ _) = const Nothing -- im not sure if this is the right move???
-replaceWith a b = error $ "ProcessTypes.hs: failed with: " ++ show a ++ " `replaceWith` " ++ show b
+
+replaceWithHelper :: Type -> Type -> Type -> Type -> Type -> Type -> Type -> MaybeT IO Type
+replaceWithHelper g f a b c d inn = do
+  guard =<< (lift $ g `usableAs` f)
+  (a `replaceWith` c) <=< (b `replaceWith` d) $ inn
 
 
-replaceAllWith :: [Type] -> [Type] -> Type -> Maybe Type
+replaceWith :: Type -> Type -> Type -> MaybeT IO Type
+replaceWith f@(Function a b) g@(Function c d) inn = replaceWithHelper g f a b c d inn
+replaceWith f@(Application a b) g@(Application c d) inn = replaceWithHelper g f a b c d inn
+replaceWith f@(Tuple as) g@(Tuple bs) inn = do
+  guard =<< lift (g `usableAs` f)
+  (as `replaceAllWith` bs) inn
+replaceWith p@(Polymorphic n cs) c inn = do
+  guard =<< lift (c `usableAs` p)
+  return $ mapType (replaceInd p c) inn
+replaceWith a@(Concrete _) b@(Concrete _) inn | a == b = return inn
+replaceWith a@(Concrete _) b@(Polymorphic _ _) inn = do
+  guard =<< lift (b `usableAs` a)
+  return inn
+replaceWith a@(Application _ _) b@(Polymorphic _ _) _ = mzero -- im not sure if this is the right move???
+replaceWith a b@(Polymorphic _ _) _ = mzero -- im not sure if this is the right move???
+replaceWith a b _ = error $ "ProcessTypes.hs: failed with: " ++ show a ++ " `replaceWith` " ++ show b
+
+
+replaceAllWith :: [Type] -> [Type] -> Type -> MaybeT IO Type
 replaceAllWith (x:xs) (y:ys) = replaceWith x y >=> replaceAllWith xs ys
-replaceAllWith [] [] = Just
+replaceAllWith [] [] = return
 
-applyValues a@(Atom t1 _) b@(Atom t2 _) = ($ b) <$> ($ a) <$> (Apply <$> apply t1 t2)
-applyValues a@(Atom t1 _) b@(Apply t2 _ _) = ($ b) <$> ($ a) <$> (Apply <$> apply t1 t2)
-applyValues a@(Apply t1 _ _) b@(Apply t2 _ _) = ($ b) <$> ($ a) <$> (Apply <$> apply t1 t2)
-applyValues a@(Apply t1 _ _) b@(Atom t2 _) = ($ b) <$> ($ a) <$> (Apply <$> apply t1 t2)
+applyValues a@(Atom t1 _) b@(Atom t2 _)       = (\t -> Apply t a b) <$> apply t1 t2
+applyValues a@(Atom t1 _) b@(Apply t2 _ _)    = (\t -> Apply t a b) <$> apply t1 t2
+applyValues a@(Apply t1 _ _) b@(Apply t2 _ _) = (\t -> Apply t a b) <$> apply t1 t2
+applyValues a@(Apply t1 _ _) b@(Atom t2 _)    = (\t -> Apply t a b) <$> apply t1 t2
 
 replace :: [(String,Type)] -> Type -> Type
 replace table (Function a b) = (Function (replace table a) (replace table b))
@@ -137,42 +167,50 @@ replace table (Tuple xs) = (Tuple $ map (replace table) xs)
 replace table a@(Concrete x) = a
 replace table a@(Polymorphic s xs) = maybe a id $ lookup s table
 
-(Just a) <> (Just b) = Just $ a ++ b
-Nothing <> a = Nothing
-a <> Nothing = Nothing
 
 isEveryIn (x:xs) ys = x `elem` ys && isEveryIn xs ys
 isEveryIn [] _ = True
 
-catJusts :: [Maybe a] -> Maybe [a]
-catJusts (Just x:xs) = (x :) <$> catJusts xs
-catJusts [] = Just []
-catJusts _ = Nothing
+reconcile :: Type -> Type -> MaybeT IO Type
+reconcile a b | a == b = return a
+reconcile (Polymorphic a xs) (Polymorphic b ys) | a == b = return (Polymorphic a (if length xs > length ys then xs else ys))
+reconcile (Polymorphic _ cs) a = do
+  guard =<< lift (a `matchesConstraints` cs)
+  return a
+reconcile a b = mzero
 
-reconcile :: Type -> Type -> Maybe Type
-reconcile a b | a == b = Just a
-reconcile (Polymorphic a xs) (Polymorphic b ys) | a == b = Just (Polymorphic a (if length xs > length ys then xs else ys))
-reconcile (Polymorphic _ cs) a | a `matchesConstraints` cs = Just a
-reconcile a b = Nothing
-
-confirm :: [(String,Type)] -> Maybe [(String,Type)]
+confirm :: [(String,Type)] -> MaybeT IO [(String,Type)]
 confirm ((s,t):xs) = case lookup s xs of
                         Nothing -> ((s,t) :) <$> confirm xs
                         (Just t2) -> do
                           f <- reconcile t t2
                           b <- confirm xs
                           return $ (s,f) : b
-confirm [] = Just []
+confirm [] = return []
 
 -- answer `usableAs` question =
-changesNeeded' :: Type -> Type -> Maybe [(String,Type)]
-changesNeeded' (Function a b) (Function c d) = confirm =<< changesNeeded' a c <> changesNeeded' b d
-changesNeeded' (Application a b) (Application c d) = confirm =<< changesNeeded' a c <> changesNeeded' b d
-changesNeeded' (Tuple xs) (Tuple ys) = confirm . concat =<< catJusts (zipWith changesNeeded' xs ys)
-changesNeeded' (Concrete _) (Concrete _) = Just []
-changesNeeded' (Polymorphic s xs) q@(Polymorphic _ ys) | all (`elem`ys) xs = Just [(s,q)]
-changesNeeded' (Polymorphic s xs) q = Just [(s,q)]
-changesNeeded' a q = Nothing
+changesNeeded' :: Type -> Type -> MaybeT IO [(String,Type)]
+changesNeeded' (Function a b) (Function c d) = do
+  acChanges <- changesNeeded' a c
+  bdChanges <- changesNeeded' b d
+  confirm $ acChanges <> bdChanges
+changesNeeded' (Application a b) (Application c d) = do
+  acChanges <- changesNeeded' a c
+  bdChanges <- changesNeeded' b d
+  confirm $ acChanges <> bdChanges
+changesNeeded' (Tuple xs) (Tuple ys) = do
+  changes <- concat <$> zipWithM changesNeeded' xs ys
+  confirm changes
+changesNeeded' (Concrete x) (Concrete y)
+  | x == y = return []
+changesNeeded' (Polymorphic s xs) q@(Polymorphic _ ys)
+  | all (`elem`ys) xs = return [(s,q)]
+changesNeeded' (Polymorphic s xs) q@(Concrete y) = do
+  instances <- map (Constraint . clas) <$> lift (getInstances y)
+  guard $ all (`elem` instances) xs
+  return [(s,q)]
+changesNeeded' (Polymorphic s xs) q = return [(s,q)]
+changesNeeded' a q = mzero
 
 changesNeeded a b = nub <$> changesNeeded' a b
 

@@ -88,7 +88,7 @@ liftAllToTestFunction = catMaybes.map (\(x,y) -> (x,) <$> resultToTestFunction y
 
 visibleFilter inType x = do
   let left = typ (funcValue x)
-  let res = left `usableAs` inType
+  res <- left `usableAs` inType
   return res
 
 -- | Tests if a hoogle result is good enough to compile and test

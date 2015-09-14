@@ -17,16 +17,18 @@ import Control.Arrow
 import Data.Either
 import GenProg
 import GenProg.RandomElement
-
+import System.Random
+import Control.Monad.Trans.Maybe
 
 main = do
+  setStdGen $ mkStdGen 0
   testGenProg
 
 testGenProg = do
   let a x = (Polymorphic "a" (map Constraint x))
-  let num = a ["Num"]
+  let num = a ["Num","Eq"]
   let lit n = Atom num (show n)
-  let ind = Individual "f :: (Num a) => a -> a" ["x :: (Num a) => a"] [] (lit 1)
+  let ind = Individual "f :: (Eq a, Num a) => a -> a" ["x :: (Eq a, Num a) => a"] [] (lit 1)
 
   tests <- mkUnaryTests (\x -> x^2) (0::Int,10) 10
 
@@ -39,7 +41,7 @@ testTypeStuff = do
   let list x = (Application (Concrete "[]") x)
   let map' = (Function (Function a b) (Function (list a) (list b)))
   let filter' = (Function (Function a (Concrete "Bool")) (Function (list a) (list a)))
-  let applic = apply filter' (Function a a)
+  applic <- runMaybeT $ apply filter' (Function a a)
   print applic
   print $ showType <$> applic
 
