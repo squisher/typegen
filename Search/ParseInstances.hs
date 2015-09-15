@@ -1,16 +1,32 @@
-module Search.ParseInstances where
+{-|
+Module      : Search.ParseInstances
+Description : Parses instance declarations
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
+module Search.ParseInstances (
+  parseInstances,
+  Instance(..)
+) where
 
 import Control.Applicative ((<$>),(<*>))
 import Language.Haskell.Syntax
 import Language.Haskell.Parser
 import Language.Haskell.Pretty
-
-import Types.Type
 import Data.Either
 
+import Types.Type
 
-data Instance = Instance { clas :: String, types :: [Type] } deriving (Show, Eq)
+-- | Simple Instance data type
+data Instance = Instance { clas :: String -- ^ Typeclass that this is an instance of
+                         , types :: [Type] -- ^ Types that have an instance for that class
+                         } deriving (Show, Eq)
 
+-- | Parses a string and returns the instance declarations
 parseInstances :: String -> Either String [Instance]
 parseInstances str = case parseModule (str++"\n") of
   (ParseOk mod) -> interpretModule mod

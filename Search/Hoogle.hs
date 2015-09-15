@@ -55,6 +55,8 @@ fileMemoize fname f s = do
       return x
     (Just x) -> return x
 
+-- | Runs a hoogle search on the given type and returns a list of functions that
+-- __/might/__ be applicable to that type.
 hoogle :: Type -> IO [TestFunction]
 hoogle = uhoogle
 

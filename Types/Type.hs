@@ -1,19 +1,37 @@
 {-# LANGUAGE TupleSections #-}
-module Types.Type where
+{-|
+Module      : Types.Type
+Description : Module containing types that represent the Haskell types
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+
+-}
+module Types.Type (
+  Constraint(..),
+  Type(..),
+  showType
+) where
 
 import Data.List
 
-data Constraint = Constraint { unConstraint :: String } deriving (Read,Show,Eq, Ord)
+-- | Simple constraint newtype used to have type safety and documentatiopn
+newtype Constraint = Constraint { unConstraint :: String
+                                } deriving (Read,Show,Eq, Ord)
 
-data Type = Function Type Type
-          | Tuple [Type]
-          | Application Type Type
-          | Concrete String
-          | Polymorphic String [Constraint]
+-- | A Haskell type
+data Type = Function Type Type -- ^ First value is accepting type and second is return value
+          | Tuple [Type] -- ^ Tuple type (eg. (Int,Int,Float), (a,b,c))
+          | Application Type Type -- ^ Applied type (eg. m a, [Int])
+          | Concrete String -- ^ Concrete type (eg. Int, Float, Bool)
+          | Polymorphic String [Constraint] -- ^ Polymorphic type with or without constraints
           deriving (Read,Show, Eq, Ord)
 
 
--- | Takes a type and displays it in correct Haskell syntax
+-- | Takes a type and displays it with correct Haskell syntax
 showType :: Type -> String
 showType (Application (Concrete "[]") x) = "["++showType x++"]"
 showType (Application f x) = showType f ++ " " ++ showType x

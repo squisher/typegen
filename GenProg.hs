@@ -1,5 +1,17 @@
 {-# LANGUAGE RecordWildCards #-}
-module GenProg where
+{-|
+Module      : GenProg
+Description : Functions for runing a genetic algorithm to generate code
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
+module GenProg (
+  runGenProg
+) where
 
 import Control.Monad.State
 import Data.Either
@@ -84,6 +96,8 @@ loop = do
 
   loop
 
+-- | Runs the genetic program on the given 'Individual' and list of 'Test's
+-- infinitely many times. 
 runGenProg ind tests = do
   putStrLn "Running TypeGen"
   let population = Population [ind] tests

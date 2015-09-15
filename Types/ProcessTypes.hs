@@ -1,5 +1,19 @@
 {-# LANGUAGE TupleSections #-}
-module Types.ProcessTypes where
+{-|
+Module      : Types.ProcessTypes
+Description : A ton of functions used to process types into other types
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
+module Types.ProcessTypes (
+  usableAs,
+  applyValues,
+  apply
+) where
 
 import           Control.Applicative
 import           Control.Monad
@@ -40,7 +54,6 @@ signature than the fucntion
 
 -}
 
--- coerce :: Type -> Type -> MaybeT IO Type
 
 
 equivalentTo (Polymorphic a xs) (Polymorphic b ys) = xs == ys
@@ -69,7 +82,8 @@ apply f@(Function a b) x = do
   guard $ newB `equivalentTo` b
   return newB
 
---     actual `usableAs` expected
+-- | This function defines when a type definition is usable in the place of another one.
+-- Keep in mind that a `usableAs` b does not necesarily equal b `usableAs` a.
 usableAs :: Type -> Type -> IO Bool
 usableAs a b | a == b                         = return True
 usableAs (Polymorphic _ []) _                 = return True
@@ -155,6 +169,8 @@ replaceAllWith :: [Type] -> [Type] -> Type -> MaybeT IO Type
 replaceAllWith (x:xs) (y:ys) = replaceWith x y >=> replaceAllWith xs ys
 replaceAllWith [] [] = return
 
+-- | Takes two values and uses 'apply' to apply their two types together then
+-- combine them with 'Apply'.
 applyValues a@(Atom t1 _) b@(Atom t2 _)       = (\t -> Apply t a b) <$> apply t1 t2
 applyValues a@(Atom t1 _) b@(Apply t2 _ _)    = (\t -> Apply t a b) <$> apply t1 t2
 applyValues a@(Apply t1 _ _) b@(Apply t2 _ _) = (\t -> Apply t a b) <$> apply t1 t2

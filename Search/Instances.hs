@@ -1,4 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-|
+Module      : Search.Instances
+Description : Looks for instances for a type or of a typeclass
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
 module Search.Instances (getInstances, Instance(..)) where
 
 import           Control.Applicative

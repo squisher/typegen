@@ -1,7 +1,24 @@
-module Types.TestFunction (TestFunction(..),modName,funcValue,parseTestFunction) where
+{-|
+Module      : Types.TestFunction
+Description : TestFunction type and utilities
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
+
+module Types.TestFunction (
+  TestFunction(..),
+  modName,
+  funcValue,
+  parseTestFunction
+) where
 
 import Types.Value as V
 import Types.Type as T
+
 import Control.Applicative ((<$>),(<*>))
 import Language.Haskell.Syntax
 import Language.Haskell.Parser
@@ -10,9 +27,12 @@ import Data.Either
 import Data.String
 import Debug.Trace
 
+-- | Represents shit I forgot... sorry. Oh wait! These are the output of Hoogle.
 data TestFunction = TestFunction (Maybe String) Value deriving (Read,Show, Eq)
 
+-- | Accessor for the module name. Why did I make these instead of record syntax?
 modName (TestFunction x _) = x
+-- | Accessor for the function value
 funcValue (TestFunction _ x) = x
 
 instance IsString TestFunction where

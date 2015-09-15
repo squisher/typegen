@@ -1,5 +1,17 @@
 {-# LANGUAGE TupleSections #-}
-module GenProg.Mutations where
+{-|
+Module      : GenProg.Mutations
+Description : Finds lists of mutations to a 'Value'
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
+module GenProg.Mutations (
+  mutations
+) where
 import           Control.Applicative
 import           Data.List
 import           Data.Maybe
@@ -42,7 +54,8 @@ interleave xs ys zs = (take 1 xs) ++ (take 1 ys) ++ (take 1 zs)
                       ++ interleave (drop 1 xs) (drop 1 ys) (drop 1 zs)
 -- Helpers ^^^^^^^^^^^^^^^
 
-
+-- | Generates a __massive__ list of mutations to an individual. These are all
+-- the concevable mutations to a single 'Individual'
 mutations :: Individual -> IO [Individual]
 mutations ind = do
   let env = getEnvironment ind

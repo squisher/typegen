@@ -1,13 +1,31 @@
-module GenProg.Execute where
+{-|
+Module      : GenProg.Execute
+Description : Executes a population
+Copyright   : (c) Jordan Medlock, 2015
+                  University of New Mexico, 2015
+License     : None
+Maintainer  : medlock@unm.edu
+Stability   : experimental
+Portability : POSIX
+-}
+
+module GenProg.Execute (
+  executePopulation
+) where
+
+
+import GenProg.Types
+
 import System.Process
 import System.Timeout
 import System.Directory
 import System.IO
 import Text.Read
-import GenProg.Types
 import Control.Monad
 import Control.Applicative
 
+-- | Executes and evaluates a 'Population' and returns a list of the individuals
+-- score, or a string with an error
 executePopulation :: Population -> IO [Either String Int]
 executePopulation pop = mapM executeString $ showPopulation pop
 
