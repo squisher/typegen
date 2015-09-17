@@ -47,6 +47,6 @@ runString string modules = handle (return . Left . show . ex) $ Right <$> do
                                     } -- I am not sure why these flags are set, but they work
         setContext [ IIDecl $ simpleImportDecl $ mkModuleName "Control.Monad"
                    , IIDecl $ simpleImportDecl $ mkModuleName "Prelude" ]
-                   -- TODO oops didnt implement modules
+                   -- TODO oops didnt implement modules, they are just hard-coded
         act <- unsafeCoerce <$> compileExpr string
         return act

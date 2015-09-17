@@ -30,6 +30,34 @@ Then install the other dependencies.
                 --enable-tests \
                 --enable-benchmarks
 
+# Running
+
 Then you can run it with:
 
 > cabal run
+
+# Documentation
+
+You can access some pretty sweet Haddock documentation by running:
+
+> cabal haddock
+
+Then opening the ./dist/doc/html/typegen/index.html page in your web browser.
+
+I tried to add documentation to every visible data type and function in the code.
+
+# Other very important info
+
+This was not yet built to be a stand-alone binary.  
+
+It is not quite production ready, which means that you still need to use it like a library.  
+
+# Important Functions and Types
+
+> GenProg.runGenProg :: Individual -> [Test] -> IO ()
+
+This is the "_main_" function it takes a starting individual and a set of tests and runs the genetic program on that individual forever (I haven't gotten it to work perfectly so this is mostly just testing).
+
+> Types.Value.Value, Types.Type.Type, Types.TestFunction.TestFunction
+
+It is important to note about these types that they have implementations for `IsString` that allow you to read Haskell code and turn them into what they represent. These are really just convenience so that when you are testing you can treat strings as the values they represent.
