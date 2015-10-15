@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+module Main where
+
 import Search.ParseInstances
 import Search.Instances
 import Types.TestFunction

@@ -16,7 +16,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Search.Hoogle,
+  exposed-modules:     Main,
+                       Search.Hoogle,
                        Types.ProcessTypes,
                        Types.Type,
                        Types.TestFunction,
@@ -66,6 +67,7 @@ executable typegen
                        mtl,
                        transformers,
                        QuickCheck
+  ghc-options:         -Wall
   -- ghc-options:
   --                      -O2
   --                      -threaded
