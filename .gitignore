@@ -8,5 +8,7 @@ Tmp*
 errors.txt
 dist/
 .cabal-sandbox/
+cabal.sandbox.config
 .DS_Store
 hoogle_store.txt
+tags
