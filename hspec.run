@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+echo ":main" | cabal exec ghci -- -package ghc-7.10.1 Spec.hs
